@@ -8,7 +8,6 @@ import onnx
 import io
 import logging
 
-
 def pytorch_to_keras(
     model, args, input_shapes=None,
     change_ordering=False, verbose=False, name_policy=None,
@@ -49,6 +48,7 @@ def pytorch_to_keras(
 
     args = tuple(args)
 
+    model.eval()
     dummy_output = model(*args)
 
     if isinstance(dummy_output, torch.autograd.Variable):
@@ -64,7 +64,7 @@ def pytorch_to_keras(
     logger.debug(output_names)
 
     stream = io.BytesIO()
-    torch.onnx.export(model, args, stream, do_constant_folding=do_constant_folding, verbose=verbose, input_names=input_names, output_names=output_names)
+    torch.onnx.export(model, args, stream, do_constant_folding=do_constant_folding, verbose=verbose, input_names=input_names, output_names=output_names, opset_version=12)
 
     stream.seek(0)
     onnx_model = onnx.load(stream)

@@ -19,93 +19,40 @@ def convert_batchnorm(node, params, layers, lambda_func, node_name, keras_name):
 
     input_0 = ensure_tf_type(layers[node.input[0]], name="%s_const" % keras_name)
 
-    assert(len(node.input) == 5)
-    weights = [
-        ensure_numpy_type(layers[node.input[1]]),
-        ensure_numpy_type(layers[node.input[2]]),
-        ensure_numpy_type(layers[node.input[3]]),
-        ensure_numpy_type(layers[node.input[4]])
-    ]
+    if len(node.input) == 5:
+        weights = [
+            ensure_numpy_type(layers[node.input[1]]),
+            ensure_numpy_type(layers[node.input[2]]),
+            ensure_numpy_type(layers[node.input[3]]),
+            ensure_numpy_type(layers[node.input[4]])
+        ]
+    elif len(node.input) == 3:
+        weights = [
+            ensure_numpy_type(layers[node.input[1]]),
+            ensure_numpy_type(layers[node.input[2]])
+        ]
+    else:
+        raise AttributeError('Unknown arguments for batch norm')
+
     eps = params['epsilon'] if 'epsilon' in params else 1e-05  # default epsilon
     momentum = params['momentum'] if 'momentum' in params else 0.9  # default momentum
 
-    gamma = gamma[np.newaxis, :, np.newaxis, np.newaxis]
-    beta = beta[np.newaxis, :, np.newaxis, np.newaxis]
-    running_mean = running_mean[np.newaxis, :, np.newaxis, np.newaxis]
-    running_var = running_var[np.newaxis, :, np.newaxis, np.newaxis]
+    if len(weights) == 2:
+        logger.debug('Batch normalization without running averages')
+        bn = keras.layers.BatchNormalization(
+            axis=1, momentum=momentum, epsilon=eps,
+            center=False, scale=False,
+            weights=weights,
+            name=keras_name
+        )
+    else:
+        bn = keras.layers.BatchNormalization(
+            axis=1, momentum=momentum, epsilon=eps,
+            weights=weights,
+            name=keras_name
+        )
 
-    bn = _BatchNorm(mean=running_mean,
-                    variance=running_var,
-                    gamma=gamma,
-                    beta=beta,
-                    var_epsilon=eps)
     layers[node_name] = bn(input_0)
-
-def _BatchNorm:
-    def __init__(self, mean, variance, gamma, beta, var_epsilon=1e-5):
-        self.mean = tf.convert_to_tensor(mean, dtype=tf.float32)
-        self.variance = tf.convert_to_tensor(variance, dtype=tf.float32)
-        self.gamma = tf.convert_to_tensor(gamma, dtype=tf.float32)
-        self.beta = tf.convert_to_tensor(beta, dtype=tf.float32)
-        self.var_eps = var_epsilon
-
-    def __call__(self, x):
-        return tf.nn.batch_normalization(x,
-          scale=self.gamma,
-          offset=self.beta,
-          mean=self.mean,
-          variance=self.variance,
-          variance_epsilon=self.var_eps)
-
-# def convert_batchnorm(node, params, layers, lambda_func, node_name, keras_name):
-#     """
-#     Convert BatchNorm2d layer
-#     :param node: current operation node
-#     :param params: operation attributes
-#     :param layers: available keras layers
-#     :param lambda_func: function for keras Lambda layer
-#     :param node_name: internal converter name
-#     :param keras_name: resulting layer name
-#     :return: None
-#     """
-#     logger = logging.getLogger('onnx2keras.batchnorm2d')
-
-#     input_0 = ensure_tf_type(layers[node.input[0]], name="%s_const" % keras_name)
-
-#     if len(node.input) == 5:
-#         weights = [
-#             ensure_numpy_type(layers[node.input[1]]),
-#             ensure_numpy_type(layers[node.input[2]]),
-#             ensure_numpy_type(layers[node.input[3]]),
-#             ensure_numpy_type(layers[node.input[4]])
-#         ]
-#     elif len(node.input) == 3:
-#         weights = [
-#             ensure_numpy_type(layers[node.input[1]]),
-#             ensure_numpy_type(layers[node.input[2]])
-#         ]
-#     else:
-#         raise AttributeError('Unknown arguments for batch norm')
-
-#     eps = params['epsilon'] if 'epsilon' in params else 1e-05  # default epsilon
-#     momentum = params['momentum'] if 'momentum' in params else 0.9  # default momentum
-
-#     if len(weights) == 2:
-#         logger.debug('Batch normalization without running averages')
-#         bn = keras.layers.BatchNormalization(
-#             axis=1, momentum=momentum, epsilon=eps,
-#             center=False, scale=False,
-#             weights=weights,
-#             name=keras_name
-#         )
-#     else:
-#         bn = keras.layers.BatchNormalization(
-#             axis=1, momentum=momentum, epsilon=eps,
-#             weights=weights,
-#             name=keras_name
-#         )
-
-#     layers[node_name] = bn(input_0)
 
 
 def convert_instancenorm(node, params, layers, lambda_func, node_name, keras_name):
